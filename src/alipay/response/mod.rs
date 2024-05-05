@@ -786,6 +786,7 @@ pub struct AlipayNotifyResponse {
     /// 用户在交易中支付的金额，单位为人民币（元），精确到小数点后 2 位
     pub buyer_pay_amount: Option<f64>,
     /// 使用集分宝支付金额，单位为人民币（元），精确到小数点后 2 位
+    #[serde(serialize_with = "serialize_float")]
     pub point_amount: Option<f64>,
     /// 总退款金额。退款通知中，返回总退款金额，单位为人民币（元），精确到小数点后 2 位
     pub refund_fee: Option<f64>,
@@ -807,6 +808,18 @@ pub struct AlipayNotifyResponse {
     pub vocher_detail_list: Option<String>,
     /// 回传参数，公共回传参数，如果请求时传递了该参数，则返回的异步通知会原样传回。本参数必须进行 UrlEncode 之后才可传入。
     pub passback_params: Option<String>,
+}
+
+// 自定义序列化函数，用于将浮点数格式化为字符串并保留两位小数
+fn serialize_float<S>(value: &Option<f64>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    let formatted_value = match value {
+        Some(num) => format!("{:.2}", num),
+        None => String::new(),
+    };
+    serializer.serialize_str(&formatted_value)
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
