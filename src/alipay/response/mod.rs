@@ -778,6 +778,11 @@ pub struct AlipayNotifyResponse {
     /// </pre>
     pub trade_status: Option<String>,
     /// 订单金额。本次交易支付订单金额，单位为人民币（元），精确到小数点后 2 位
+    /// 注意这里需要显式的保留2位小数
+    /// 否则会导致验签失败
+    /// 例如支付0.1元支付宝是以0.10来生成签名的
+    /// 如果不保留2位小数，那么在本地会以0.1来计算签名
+    /// 导致签名不一致验签失败
     #[serde(serialize_with = "serialize_float")]
     pub total_amount: Option<f64>,
     /// 实收金额。商家在交易中实际收到的款项，单位为人民币（元），精确到小数点后 2 位
