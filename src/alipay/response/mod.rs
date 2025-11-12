@@ -5,7 +5,7 @@ use serde::de::{DeserializeOwned};
 use serde::Serializer;
 use crate::{errors::LabraError, AlipayResponse, LabradorResult, RequestMethod};
 use crate::alipay::constants::{ALIPAY_CERT_SN, ERROR_RESPONSE_KEY, SIGN};
-
+use utoipa::ToSchema;
 //----------------------------------------------------------------------------------------------------------------------------
 #[derive(Debug, Deserialize,Serialize)]
 pub struct DescList {
@@ -733,7 +733,7 @@ pub struct AlipayCancelOrderResponse {
 
 //----------------------------------------------------------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize,Serialize)]
+#[derive(Debug, Deserialize,Serialize, ToSchema)]
 pub struct AlipayNotifyResponse {
     /// 通知的发送时间。格式为 yyyy-MM-dd HH:mm:ss
     pub notify_time: String,
