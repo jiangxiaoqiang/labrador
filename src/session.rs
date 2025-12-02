@@ -59,12 +59,16 @@ impl ToRedisArgs for Store {
 
 impl FromRedisValue for Store {
     fn from_redis_value(v: &redis::Value) -> redis::RedisResult<Self> {
+        // Some `redis` crate versions don't expose a `Data` variant on `Value`.
+        // Try converting the value to `Vec<u8>` first (works for binary responses),
+        // otherwise handle `Okay`/`Nil` or return a type error.
+        if let Ok(bytes) = <Vec<u8> as FromRedisValue>::from_redis_value(v) {
+            let data = bincode::deserialize::<Store>(&bytes).unwrap_or(Store::Null);
+            return Ok(data);
+        }
+
         match *v {
-            redis::Value::Data(ref bytes) => {
-                let data = bincode::deserialize::<Store>(bytes).unwrap_or(Store::Null);
-                Ok(data)
-            },
-            redis::Value::Okay => Ok(Store::Null),
+            redis::Value::Okay | redis::Value::Nil => Ok(Store::Null),
             _ => Err(redis::RedisError::from((
                 redis::ErrorKind::TypeError,
                 "Response was of incompatible type",
@@ -401,6 +405,8 @@ impl SessionStore for SimpleStorage {
 pub mod redis_store {
 
     pub type RedisPool = Pool<redis::Client>;
+    use std::convert::TryInto;
+
     use r2d2::{Pool};
     use redis::{self, ToRedisArgs, ConnectionLike, Commands, FromRedisValue, streams};
     use crate::{LabradorResult, LabraError};
@@ -758,7 +764,7 @@ pub mod redis_store {
             if !client.check_connection() {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
-            client.expire(key, seconds).map_err(LabraError::from)
+            client.expire(key, seconds.try_into().unwrap()).map_err(LabraError::from)
         }
 
         pub fn expire_at<'a, K: ToRedisArgs,RV: FromRedisValue>(&self, key: K, ts: usize) -> LabradorResult<RV> {
@@ -766,7 +772,7 @@ pub mod redis_store {
             if !client.check_connection() {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
-            client.expire_at(key, ts).map_err(LabraError::from)
+            client.expire_at(key, ts.try_into().unwrap()).map_err(LabraError::from)
         }
 
         pub fn lpush<'a, K: ToRedisArgs, V: ToRedisArgs, RV: FromRedisValue>(&self, key: K, value: V) -> LabradorResult<RV> {
@@ -791,7 +797,7 @@ pub mod redis_store {
             if !client.check_connection() {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
-            client.blpop(key, timeout).map_err(LabraError::from)
+            client.blpop(key, timeout as f64).map_err(LabraError::from)
         }
 
         /// 移出并获取列表的最后一个元素， 如果列表没有元素会阻塞列表直到等待超时或发现可弹出元素为止。
@@ -800,7 +806,7 @@ pub mod redis_store {
             if !client.check_connection() {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
-            client.brpop(key, timeout).map_err(LabraError::from)
+            client.brpop(key, timeout as f64).map_err(LabraError::from)
         }
 
         /// 移出并获取列表的第一个元素
@@ -888,7 +894,7 @@ pub mod redis_store {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
             if let Some(seconds) = ttl {
-                let _ = client.set_ex(key, value.to_store(), seconds)?;
+                let _ = client.set_ex(key, value.to_store(), seconds.try_into().unwrap())?;
             } else {
                 let _ = client.set(key, value.to_store())?;
             }
