@@ -454,7 +454,7 @@ pub mod redis_store {
             if !client.check_connection() {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
-            let s = client.del(key.as_ref())?;
+            let _: usize = client.del(key.as_ref())?;
             Ok(())
         }
 
@@ -894,9 +894,9 @@ pub mod redis_store {
                 return Err(LabraError::ApiError("error to get redis connection".to_string()))
             }
             if let Some(seconds) = ttl {
-                let _ = client.set_ex(key, value.to_store(), seconds.try_into().unwrap())?;
+                client.set_ex::<&str, Store, u64>(key, value.to_store(), seconds.try_into().unwrap()).unwrap();
             } else {
-                let _ = client.set(key, value.to_store())?;
+                client.set::<&str, Store, ()>(key, value.to_store()).unwrap();
             }
 
             Ok(())
